@@ -1,0 +1,34 @@
+{
+  "name": "luzrain/dbal-amphp-mysql",
+  "description": "Async Doctrine DBAL driver for AMPHP Mysql client",
+  "keywords": ["mysql", "async", "doctrine", "doctrine-orm", "doctrine-dbal", "dbal", "driver", "amphp"],
+  "homepage": "https://github.com/luzrain/dbal-amphp-mysql",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Anton Zenkov",
+      "email": "anton.z@live.com",
+      "homepage": "https://github.com/luzrain/",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=8.2",
+    "amphp/mysql": "^3.0",
+    "doctrine/dbal": "^4.3",
+    "revolt/event-loop": "^1.0"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.94",
+    "vimeo/psalm": "^6.15.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "Luzrain\\DbalDriver\\AmphpMysql\\": "src"
+    }
+  },
+  "config": {
+    "sort-packages": true
+  }
+}
