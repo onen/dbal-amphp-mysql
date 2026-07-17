@@ -54,6 +54,12 @@ final class AsyncDriver extends AbstractMySQLDriver
 
     private function init(#[\SensitiveParameter] array $params): void
     {
+        $initCommand = $params['driverOptions']['init_command'] ?? null;
+        $connector = new SocketMysqlConnector();
+        if ($initCommand !== null && $initCommand !== '') {
+            $connector = new InitCommandMysqlConnector($connector, $initCommand);
+        }
+
         $pool = new MysqlConnectionPool(
             config: new MysqlConfig(
                 host: $params['host'] ?? '',
@@ -65,7 +71,7 @@ final class AsyncDriver extends AbstractMySQLDriver
             ),
             maxConnections: $params['driverOptions']['max_connections'] ?? SqlCommonConnectionPool::DEFAULT_MAX_CONNECTIONS,
             idleTimeout: $params['driverOptions']['idle_timeout'] ?? SqlCommonConnectionPool::DEFAULT_IDLE_TIMEOUT,
-            connector: new SocketMysqlConnector(),
+            connector: $connector,
         );
 
         $this->pop = (function (): MysqlConnection {
