@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Luzrain\DbalDriver\AmphpMysql;
 
+use Amp\Dns\DnsRecord;
 use Amp\Mysql\MysqlConfig;
 use Amp\Mysql\MysqlConnection;
 use Amp\Mysql\MysqlConnectionPool;
 use Amp\Mysql\SocketMysqlConnector;
+use Amp\Socket\ConnectContext;
+use Amp\Socket\DnsSocketConnector;
+use Amp\Socket\RetrySocketConnector;
 use Amp\Sql\Common\SqlCommonConnectionPool;
 use Doctrine\DBAL\Driver\AbstractMySQLDriver;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
@@ -54,12 +58,37 @@ final class AsyncDriver extends AbstractMySQLDriver
 
     private function init(#[\SensitiveParameter] array $params): void
     {
+        $connectTimeout = (float) ($params['driverOptions']['connect_timeout'] ?? 10);
+        $connectRetries = (int) ($params['driverOptions']['connect_retries'] ?? 0);
+        $dnsRecordType = $params['driverOptions']['dns_record_type'] ?? null;
+        $maxConnections = (int) ($params['driverOptions']['max_connections'] ?? SqlCommonConnectionPool::DEFAULT_MAX_CONNECTIONS);
+        $idleTimeout = (int) ($params['driverOptions']['idle_timeout'] ?? SqlCommonConnectionPool::DEFAULT_IDLE_TIMEOUT);
+
+        $socketConnector = $connectRetries <= 0
+            ? new DnsSocketConnector()
+            : new RetrySocketConnector(
+                delegate: new DnsSocketConnector(),
+                maxAttempts: $connectRetries + 1,
+                exponentialBackoffBase: 1,
+            )
+        ;
+
+        $connectContext = (new ConnectContext())
+            ->withConnectTimeout($connectTimeout)
+            ->withDnsTypeRestriction(match ($dnsRecordType) {
+                'A' => DnsRecord::A,
+                'AAAA' => DnsRecord::AAAA,
+                default => null,
+            })
+        ;
+
         $initCommand = $params['driverOptions']['init_command'] ?? null;
-        $connector = new SocketMysqlConnector();
+        $connector = new SocketMysqlConnector($socketConnector);
         if ($initCommand !== null && $initCommand !== '') {
             $connector = new InitCommandMysqlConnector($connector, $initCommand);
         }
 
+        /** @psalm-suppress ArgumentTypeCoercion */
         $pool = new MysqlConnectionPool(
             config: new MysqlConfig(
                 host: $params['host'] ?? '',
@@ -67,10 +96,11 @@ final class AsyncDriver extends AbstractMySQLDriver
                 user: $params['user'] ?? null,
                 password: $params['password'] ?? null,
                 database: $params['dbname'] ?? null,
+                context: $connectContext,
                 charset: $params['charset'] ?? MysqlConfig::DEFAULT_CHARSET,
             ),
-            maxConnections: $params['driverOptions']['max_connections'] ?? SqlCommonConnectionPool::DEFAULT_MAX_CONNECTIONS,
-            idleTimeout: $params['driverOptions']['idle_timeout'] ?? SqlCommonConnectionPool::DEFAULT_IDLE_TIMEOUT,
+            maxConnections: $maxConnections,
+            idleTimeout: $idleTimeout,
             connector: $connector,
         );
 
