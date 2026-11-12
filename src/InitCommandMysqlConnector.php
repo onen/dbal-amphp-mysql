@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Luzrain\DbalDriver\AmphpMysql;
 
 use Amp\Cancellation;
+use Amp\Mysql\MysqlConfig;
 use Amp\Mysql\MysqlConnection;
 use Amp\Sql\SqlConfig;
 use Amp\Sql\SqlConnector;
@@ -17,10 +18,13 @@ use Amp\Sql\SqlConnector;
  * equivalent hook, so the decoration happens at the connector seam — inside
  * pool->pop(), where suspension is legal.
  *
- * @implements SqlConnector<SqlConfig, MysqlConnection>
+ * @implements SqlConnector<MysqlConfig, MysqlConnection>
  */
 final class InitCommandMysqlConnector implements SqlConnector
 {
+    /**
+     * @param SqlConnector<MysqlConfig, MysqlConnection> $delegate
+     */
     public function __construct(
         private readonly SqlConnector $delegate,
         private readonly string $initCommand,
